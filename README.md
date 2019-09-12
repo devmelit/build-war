@@ -1,4 +1,4 @@
-# melit-build-war [buildWar]
+# melit-build-war [buildwar]
 Herramienta para crear WAR, se añaden funcionalidades para quitar cache a los archivos cuando se despliega en modo test.
 
 ## Instalar
@@ -12,6 +12,6 @@ Herramienta para crear WAR, se añaden funcionalidades para quitar cache a los a
 ```
 
 ## Requiere
-* npm > 6.5.0
-* Maven > 2.5
+* npm > 5.6.0
+* Maven
 * Git

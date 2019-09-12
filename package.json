@@ -1,13 +1,13 @@
 {
   "name": "melit-build-war",
-  "version": "0.1.0",
-  "description": "Utility to build wars from java + angularJS applications",
+  "version": "0.5.0",
+  "description": "Utility to build wars from java + angularJS or Angular applications",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"No test specified\" && exit 1"
   },
   "bin": {
-    "buildWar": "./index.js"
+    "buildwar": "./index.js"
   },
   "repository": {
     "type": "git",
@@ -29,6 +29,7 @@
   },
   "homepage": "https://github.com/devmelit/build-war#readme",
   "dependencies": {
+    "find": "^0.3.0",
     "readline-sync": "^1.4.10",
     "xmldom": "^0.1.27",
     "xpath": "0.0.27"
