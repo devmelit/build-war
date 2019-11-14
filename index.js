@@ -10,6 +10,7 @@ const readlineSync = require('readline-sync');
 const spawnSync = require('child_process').spawnSync;
 const path = require('path');
 const find = require('find');
+const figlet = require('figlet');
 
 const CWD_DIRNAME = process.cwd();
 const POM_FILE = path.join(CWD_DIRNAME, 'pom.xml');
@@ -20,7 +21,7 @@ const BUILD_TIMESTAMP = new Date().getTime();
 
 init();
 async function init() {
-    console.time("[EXIT] Build war");
+    await printVersion();
     checkFiles();
     console.info(`[INFO] Angular${ANGULAR_JS ? 'JS' : ''} detectado.`);
     const profile = readlineSync.keyInYN(`Es war de produccion?`, {defaultInput: 'Y'}) ? 'prod' : 'dev';
@@ -30,18 +31,40 @@ async function init() {
     const buildVersion = await editPomVersion(pomXmlDom, null);
     if (skipTest) await editPomSkipTest(pomXmlDom);
     if (ANGULAR_JS) await editAppConstants(buildVersion);
-    if ('dev' === profile) {
-        if (ANGULAR_JS && readlineSync.keyInYN(`Quieres quitar cache en index.html?`, {defaultInput: 'Y'})) {
-            await editIndexHtml();
-        }
+    if ('dev' === profile && ANGULAR_JS) {
+        await editIndexHtml();
+        await removeCacheStates();
     }
-    await execMaven(profile);
+    await execMaven(profile)
+        .then(() => console.info('[INFO] War generado correctamente! :)'))
+        .catch((err) => printError('Error al generar war! :('));
     await cleanBuild(profile);
     //Volvemos a agregar la build version al node despues de descartar todo
     pomXmlDom = await readPom();
     await editPomVersion(pomXmlDom, buildVersion);
-    console.info('[INFO] War generado correctamente! :)');
     console.timeEnd("[EXIT] Build war");
+}
+
+function printVersion() {
+    return new Promise((resolve, reject) => {
+        try {
+            const pjson = require('./package.json');
+            console.time("[EXIT] Build war");
+            figlet(`Dev Melit`, {font: 'Epic'}, function(err, data) {
+                if (err) {
+                    printError('Something went wrong...');
+                    console.dir(err);
+                    return;
+                }
+                console.log(data);
+                console.log(`Version: ${pjson.version}. https://github.com/devmelit/build-war/`);
+                resolve();
+            });
+        } catch (err) {
+            printError(err);
+            reject();
+        }
+    });
 }
 
 function checkFiles() {
@@ -131,13 +154,10 @@ function editIndexHtml() {
         try {
             fs.readFile(path.join(WEBAPP_DIR,'index.html'), "utf-8", function (err, html) {
                 if (err && printError(err)) reject();
-                let removeCache = false;
-                do {
-                    const inputStr = readlineSync.question(`archivos, ej: oferta: `);
-                    html = replace(html, inputStr, BUILD_TIMESTAMP);
-            
-                    removeCache = readlineSync.keyInYN(`Quieres continuar quitando cache?`, {defaultInput: 'Y'});
-                } while (removeCache);
+                const expJsFiles = new RegExp(`(.*\.js)`, 'g');
+                html = html.replace(expJsFiles, `$1?${BUILD_TIMESTAMP}`);
+                const expCssFiles = new RegExp(`(.*\.css)`, 'g');
+                html = html.replace(expCssFiles, `$1?${BUILD_TIMESTAMP}`);
                 writeFile(path.join(WEBAPP_DIR,'index.html'), html).then(resolve).catch(reject);
             });
         } catch (err) {
@@ -147,9 +167,36 @@ function editIndexHtml() {
     });
 }
 
-function replace(data, pattern, strReplace) {
-    const expJsFiles = new RegExp(`(.*${pattern}.*\.js)`, 'g');
-    return data.replace(expJsFiles, `$1?${strReplace}`);
+/**
+ * Quitamos cache a las vistas (html) de todos los states en profile DEV
+ */
+function removeCacheStates() {
+    return new Promise((resolve, reject) => {
+        try {
+            let files = find.fileSync(/\.js$/, path.join(WEBAPP_DIR, 'app'));
+            if (fs.existsSync(path.join(WEBAPP_DIR, 'scripts'))) {
+                Array.prototype.push.apply(files, find.fileSync(/\.js$/, path.join(WEBAPP_DIR, 'scripts')));
+            }
+            console.info(`[INFO] Eliminando cache html in ${files.length} states`);
+            let editedFiles = 0;
+            for (const file of files) {
+                console.info(`[INFO] Eliminando cache de state: ${file}`);
+                fs.readFile(file, 'utf8', (err, data) => {
+                    if (err) {
+                        return console.log(err);
+                    }
+                    var result = data.replace(/(.*\.html)([\'\"])/g, `$1?${BUILD_TIMESTAMP}$2`);
+                
+                    writeFile(file, result).then(() => {
+                        editedFiles++;
+                        if (files.length === editedFiles) resolve();
+                    }).catch((err) => console.error(err));
+                });
+            }
+        } catch (err) {
+            reject(err);
+        }
+    });
 }
 
 function editAppConstants(buildVersion) {
@@ -232,7 +279,7 @@ function execute(command) {
     console.info('[INFO] ' + command);
     return new Promise((resolve, reject) => {
         try {
-            spawnSync(command, { stdio: 'inherit', shell: true })
+            spawnSync(command, { stdio: 'inherit', shell: true });
             resolve();
         } catch (err) {
             reject(err);

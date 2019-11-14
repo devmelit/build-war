@@ -1,6 +1,6 @@
 {
   "name": "melit-build-war",
-  "version": "0.7.0",
+  "version": "0.8.1",
   "description": "Utility to build wars from java + angularJS or Angular applications",
   "main": "index.js",
   "scripts": {
@@ -29,6 +29,7 @@
   },
   "homepage": "https://github.com/devmelit/build-war#readme",
   "dependencies": {
+    "figlet": "^1.2.4",
     "find": "^0.3.0",
     "readline-sync": "^1.4.10",
     "xmldom": "^0.1.27",

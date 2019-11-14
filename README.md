@@ -1,9 +1,9 @@
 # melit-build-war [buildwar]
-Herramienta para crear WAR, se añaden funcionalidades para quitar cache a los archivos cuando se despliega en modo test.
+Herramienta para crear WAR/JAR, se añaden funcionalidades para quitar cache a los archivos cuando se despliega en modo test/DEV.
 
 ## Instalar
 ```
-> npm install -g melit-build-war
+> npm i -g melit-build-war
 ```
 
 ## Ejecutar:
@@ -12,6 +12,7 @@ Herramienta para crear WAR, se añaden funcionalidades para quitar cache a los a
 ```
 
 ## Requiere
+* Microsoft PowerShell
 * npm > 5.6.0
 * Maven
 * Git
