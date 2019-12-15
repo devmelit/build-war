@@ -11,6 +11,9 @@ const spawnSync = require('child_process').spawnSync;
 const path = require('path');
 const find = require('find');
 const figlet = require('figlet');
+const minimist = require('minimist');
+const clear = require('clear');
+const chalk = require('chalk');
 
 const CWD_DIRNAME = process.cwd();
 const POM_FILE = path.join(CWD_DIRNAME, 'pom.xml');
@@ -19,16 +22,18 @@ const ANGULAR_JS = detectAngularJS();
 
 const BUILD_TIMESTAMP = new Date().getTime();
 
+clear();
 init();
 async function init() {
     await printVersion();
+    const args = getAndPrintArguments();
     checkFiles();
-    console.info(`[INFO] Angular${ANGULAR_JS ? 'JS' : ''} detectado.`);
-    const profile = readlineSync.keyInYN(`Es war de produccion?`, {defaultInput: 'Y'}) ? 'prod' : 'dev';
-    const skipTest = !readlineSync.keyInYN(`Ejecutar TEST?`, {defaultInput: 'Y'});
+    printInfo(`Angular${ANGULAR_JS ? 'JS' : ''} detectado.`);
+    const profile = args.profile || readlineSync.keyInYN(`Es war de produccion?`, { defaultInput: 'Y' }) ? 'prod' : 'dev';
+    const skipTest = args.skipTest || !readlineSync.keyInYN(`Ejecutar TEST?`, { defaultInput: 'Y' });
 
     let pomXmlDom = await readPom();
-    const buildVersion = await editPomVersion(pomXmlDom, null);
+    const buildVersion = await editPomVersion(pomXmlDom, args.release);
     if (skipTest) await editPomSkipTest(pomXmlDom);
     if (ANGULAR_JS) await editAppConstants(buildVersion);
     if ('dev' === profile && ANGULAR_JS) {
@@ -36,13 +41,43 @@ async function init() {
         await removeCacheStates();
     }
     await execMaven(profile)
-        .then(() => console.info('[INFO] War generado correctamente! :)'))
+        .then(() => printInfo('War generado correctamente! :)'))
         .catch((err) => printError('Error al generar war! :('));
     await cleanBuild(profile);
+    if (args.output) await renameOutputFile(args.output);
     //Volvemos a agregar la build version al node despues de descartar todo
     pomXmlDom = await readPom();
     await editPomVersion(pomXmlDom, buildVersion);
     console.timeEnd("[EXIT] Build war");
+}
+
+function getAndPrintArguments() {
+    const argOpts = {
+        string: ['profile', 'output', 'release'],
+        boolean: ['skipTest'],
+        alias: { 'profile': 'p', 'output': 'o', 'skipTest': 's', 'release': 'r' }
+    };
+    const args = minimist(process.argv.slice(2), argOpts);
+    const options = {};
+    let info = '';
+    if (args.profile || args.p) {
+        options.profile = args.profile || args.p;
+        info += `-Profile: ${options.profile} `;
+    }
+    if (args.skipTest || args.s) {
+        options.skipTest = true;
+        info += `-Skip Test: true `;
+    }
+    if (args.output || args.o) {
+        options.output = args.output || args.o;
+        info += `-Output file: ${options.output} `;
+    }
+    if (args.release || args.r) {
+        options.release = args.release || args.r;
+        info += `-Release version: ${options.release} `;
+    }
+    if (info.length > 0) printInfo(`Argumentos: ${info}`);
+    return options;
 }
 
 function printVersion() {
@@ -50,14 +85,14 @@ function printVersion() {
         try {
             const pjson = require('./package.json');
             console.time("[EXIT] Build war");
-            figlet(`Dev Melit`, {font: 'Epic'}, function(err, data) {
+            figlet(`Dev Melit`, { font: 'Epic' }, function (err, data) {
                 if (err) {
                     printError('Something went wrong...');
                     console.dir(err);
                     return;
                 }
-                console.log(data);
-                console.log(`Version: ${pjson.version}. https://github.com/devmelit/build-war/`);
+                console.log(chalk.greenBright(data));
+                printInfo(`Version: ${pjson.version}. https://github.com/devmelit/build-war/`);
                 resolve();
             });
         } catch (err) {
@@ -90,7 +125,7 @@ function readPom() {
                 if (err && printError(err)) reject(null);
                 resolve(new dom().parseFromString(xml));
             });
-        } catch(err) {reject(null);}
+        } catch (err) { reject(null); }
     });
 }
 
@@ -115,15 +150,15 @@ function editPomVersion(pomXmlDom, projectVersion) {
                     const inputVersion = readlineSync.question(`Introduzca NUEVA VERSION: (${buildVersion}) `, {
                         defaultInput: buildVersion
                     });
-                        
+
                     if (inputVersion && inputVersion.length !== 0) buildVersion = inputVersion;
                 }
-            
+
                 versionElement.textContent = buildVersion;
                 writeFile(POM_FILE, pomXmlDom.toString()).then(() => resolve(buildVersion)).catch(reject);
-                
+
             }
-        } catch(err) {reject();}
+        } catch (err) { reject(); }
     });
 }
 
@@ -141,7 +176,7 @@ function editPomSkipTest(pomXmlDom) {
             }
             propertiesElement.appendChild(tagSkipTest);
             writeFile(POM_FILE, pomXmlDom.toString()).then(resolve).catch(reject);
-        } catch(err) {reject();}
+        } catch (err) { reject(); }
     });
 }
 
@@ -152,13 +187,13 @@ function editIndexHtml() {
     console.info("[INFO] Editando index.html");
     return new Promise((resolve, reject) => {
         try {
-            fs.readFile(path.join(WEBAPP_DIR,'index.html'), "utf-8", function (err, html) {
+            fs.readFile(path.join(WEBAPP_DIR, 'index.html'), "utf-8", function (err, html) {
                 if (err && printError(err)) reject();
                 const expJsFiles = new RegExp(`(.*\.js)`, 'g');
                 html = html.replace(expJsFiles, `$1?${BUILD_TIMESTAMP}`);
                 const expCssFiles = new RegExp(`(.*\.css)`, 'g');
                 html = html.replace(expCssFiles, `$1?${BUILD_TIMESTAMP}`);
-                writeFile(path.join(WEBAPP_DIR,'index.html'), html).then(resolve).catch(reject);
+                writeFile(path.join(WEBAPP_DIR, 'index.html'), html).then(resolve).catch(reject);
             });
         } catch (err) {
             printError(err);
@@ -186,7 +221,7 @@ function removeCacheStates() {
                         return console.log(err);
                     }
                     var result = data.replace(/(.*\.html)([\'\"])/g, `$1?${BUILD_TIMESTAMP}$2`);
-                
+
                     writeFile(file, result).then(() => {
                         editedFiles++;
                         if (files.length === editedFiles) resolve();
@@ -247,7 +282,7 @@ function execMaven(profile) {
             if ('dev' == profile && !ANGULAR_JS) profile += ',webpack';
             execute(`${mvnCommand} clean package -P${profile}`)
                 .then(resolve).catch(reject);
-        } catch(err) {reject();}
+        } catch (err) { reject(); }
     });
 }
 
@@ -271,23 +306,36 @@ function writeFile(file, data) {
 
 async function cleanBuild(profile) {
     //Clean
-    await execute(`git checkout -- ${path.join(WEBAPP_DIR,'index.html')}`);
+    await execute(`git checkout -- ${path.join(WEBAPP_DIR, 'index.html')}`);
     await execute(`git checkout -- ${POM_FILE}`);
 }
 
+async function renameOutputFile(outputName) {
+    try {
+        await fs.rename(path.join('target','*.war.original'), path.join('target', outputName));
+    } catch (err) {
+        printError('Error al renombrar fichero');
+        return null;
+    }
+}
+
 function execute(command) {
-    console.info('[INFO] ' + command);
+    printInfo(command);
     return new Promise((resolve, reject) => {
         try {
             spawnSync(command, { stdio: 'inherit', shell: true });
-            resolve();
         } catch (err) {
             reject(err);
         }
+        resolve();
     });
 }
 
+function printInfo(info) {
+    console.error(chalk.bold.blue(`[INFO] ${info}`));
+}
+
 function printError(err) {
-    console.error(`[ERROR] ${err}`);
+    console.error(chalk.bold.red(`[ERROR] ${err}`));
 }
 
