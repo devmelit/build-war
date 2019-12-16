@@ -209,7 +209,11 @@ function editAppConstants(buildVersion) {
                 if (err) printError(err);
                 const expVersion = new RegExp("\(\'VERSION\',.*\)");
                 const expTimestamp = new RegExp("\(\'BUILD_TIMESTAMP\',.*\)");
-                data = data.replace(expVersion, `'VERSION', '${buildVersion}')`);
+                let versionText = buildVersion;
+                if (!data.match(expTimestamp)) {
+                    versionText += `-${new Date(BUILD_TIMESTAMP).toLocaleDateString()}`;
+                }
+                data = data.replace(expVersion, `'VERSION', '${versionText}')`);
                 data = data.replace(expTimestamp, `'BUILD_TIMESTAMP', ${BUILD_TIMESTAMP})`);
                 writeFile(CONSTANTS_FILE, data).then(resolve).catch(reject);
             });
