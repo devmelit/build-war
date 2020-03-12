@@ -11,16 +11,22 @@ Herramienta para crear WAR/JAR, se añaden funcionalidades para quitar cache a l
 > buildwar
 ```
 ## Argumentos
-* output(o): Nombre del fichero generado
+* --output(--o): Nombre del fichero generado
 
-* skip-test(t): skip test, no necesita valor
+* --testSkip(--t): skip test, no necesita valor
 
-* profile(p): Perfil de creación. [pro] o [dev]
+* --profile(--p): Perfil de creación. [pro] o [dev], por defecto 'dev'
+  
+* --release(--r): Release version
+
+* --silent(--s): Silent mode, no necesita valor
 
 ## Uso:
 ```
-> buildwar -o test.war -profile dev
-> buildwar -p prod -skip-test 
+> buildwar --output=test.war --profile=dev
+> buildwar --p=prod --testSkip 
+> buildwar --t --release="1.0.0"
+> buildwar --t --silent
 ```
 
 ## Requiere

@@ -29,12 +29,12 @@ async function init() {
     const args = getAndPrintArguments();
     checkFiles();
     printInfo(`Angular${ANGULAR_JS ? 'JS' : ''} detectado.`);
-    const profile = args.profile || readlineSync.keyInYN(`Es war de produccion?`, { defaultInput: 'Y' }) ? 'prod' : 'dev';
-    const skipTest = args.skipTest || !readlineSync.keyInYN(`Ejecutar TEST?`, { defaultInput: 'Y' });
+    const profile = args.profile || !args.silent && (readlineSync.keyInYN(`Es war de produccion?`, { defaultInput: 'Y' }) ? 'prod' : 'dev');
+    const testSkip = args.testSkip || !args.silent && !readlineSync.keyInYN(`Ejecutar TEST?`, { defaultInput: 'Y' });
 
     let pomXmlDom = await readPom();
-    const buildVersion = await editPomVersion(pomXmlDom, args.release);
-    if (skipTest) await editPomSkipTest(pomXmlDom);
+    const buildVersion = await editPomVersion(pomXmlDom, args.release, args.silent);
+    if (testSkip) await editPomTestSkip(pomXmlDom);
     if (ANGULAR_JS) await editAppConstants(buildVersion);
     if ('dev' === profile && ANGULAR_JS) {
         await editIndexHtml();
@@ -44,18 +44,18 @@ async function init() {
         .then(() => printInfo('War generado correctamente! :)'))
         .catch((err) => printError('Error al generar war! :('));
     await cleanBuild(profile);
-    if (args.output) await renameOutputFile(args.output);
+    if (args.output) await renameOutputFile(args.output).catch(printError);
     //Volvemos a agregar la build version al node despues de descartar todo
     pomXmlDom = await readPom();
-    await editPomVersion(pomXmlDom, buildVersion);
+    await editPomVersion(pomXmlDom, buildVersion, true);
     console.timeEnd("[EXIT] Build war");
 }
 
 function getAndPrintArguments() {
     const argOpts = {
         string: ['profile', 'output', 'release'],
-        boolean: ['skipTest'],
-        alias: { 'profile': 'p', 'output': 'o', 'skipTest': 's', 'release': 'r' }
+        boolean: ['testSkip', 'silent'],
+        alias: { 'profile': 'p', 'output': 'o', 'testSkip': 't', 'release': 'r', 'silent': 's' }
     };
     const args = minimist(process.argv.slice(2), argOpts);
     const options = {};
@@ -64,9 +64,9 @@ function getAndPrintArguments() {
         options.profile = args.profile || args.p;
         info += `-Profile: ${options.profile} `;
     }
-    if (args.skipTest || args.s) {
-        options.skipTest = true;
-        info += `-Skip Test: true `;
+    if (args.testSkip || args.t) {
+        options.testSkip = true;
+        info += `-Test Skip: true `;
     }
     if (args.output || args.o) {
         options.output = args.output || args.o;
@@ -75,6 +75,10 @@ function getAndPrintArguments() {
     if (args.release || args.r) {
         options.release = args.release || args.r;
         info += `-Release version: ${options.release} `;
+    }
+    if (args.silent || args.s) {
+        options.silent = args.silent || args.s;
+        info += `-silent mode: true `;
     }
     if (info.length > 0) printInfo(`Argumentos: ${info}`);
     return options;
@@ -133,7 +137,7 @@ function readPom() {
  * Solicitamos version y
  * Editamos el pom.xml
  */
-function editPomVersion(pomXmlDom, projectVersion) {
+function editPomVersion(pomXmlDom, projectVersion, silent) {
     return new Promise((resolve, reject) => {
         try {
             let versionTags = xpath.select("//*[local-name(.)='version']", pomXmlDom);
@@ -146,7 +150,7 @@ function editPomVersion(pomXmlDom, projectVersion) {
             }
             if (null !== versionElement) {
                 let buildVersion = projectVersion || versionElement.textContent;
-                if (!projectVersion) {
+                if (!silent && !projectVersion) {
                     const inputVersion = readlineSync.question(`Introduzca NUEVA VERSION: (${buildVersion}) `, {
                         defaultInput: buildVersion
                     });
@@ -162,10 +166,10 @@ function editPomVersion(pomXmlDom, projectVersion) {
     });
 }
 
-function editPomSkipTest(pomXmlDom) {
+function editPomTestSkip(pomXmlDom) {
     return new Promise((resolve, reject) => {
         try {
-            const tagSkipTest = new dom().parseFromString(`<maven.test.skip>true</maven.test.skip>`);
+            const tagTestSkip = new dom().parseFromString(`<maven.test.skip>true</maven.test.skip>`);
             let propertiesTags = xpath.select("//*[local-name(.)='properties']", pomXmlDom);
             let propertiesElement = null;
             for (let i = 0; i < propertiesTags.length; i++) {
@@ -174,7 +178,7 @@ function editPomSkipTest(pomXmlDom) {
                     break;
                 }
             }
-            propertiesElement.appendChild(tagSkipTest);
+            propertiesElement.appendChild(tagTestSkip);
             writeFile(POM_FILE, pomXmlDom.toString()).then(resolve).catch(reject);
         } catch (err) { reject(); }
     });
