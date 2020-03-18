@@ -29,8 +29,8 @@ async function init() {
     const args = getAndPrintArguments();
     checkFiles();
     printInfo(`Angular${ANGULAR_JS ? 'JS' : ''} detectado.`);
-    const profile = args.profile || !args.silent && (readlineSync.keyInYN(`Es war de produccion?`, { defaultInput: 'Y' }) ? 'prod' : 'dev');
-    const testSkip = args.testSkip || !args.silent && !readlineSync.keyInYN(`Ejecutar TEST?`, { defaultInput: 'Y' });
+    const profile = args.profile || (readlineSync.keyInYN(`Es war de produccion?`, { defaultInput: 'Y' }) ? 'prod' : 'dev');
+    const testSkip = args.testSkip || !readlineSync.keyInYN(`Ejecutar TEST?`, { defaultInput: 'Y' });
 
     let pomXmlDom = await readPom();
     const buildVersion = await editPomVersion(pomXmlDom, args.release, args.silent);
@@ -60,14 +60,20 @@ function getAndPrintArguments() {
     const args = minimist(process.argv.slice(2), argOpts);
     const options = {};
     let info = '';
+    if (args.silent || args.s) {
+        options.silent = args.silent || args.s;
+        info += `-silent mode: true `;
+    }
     if (args.profile || args.p) {
         options.profile = args.profile || args.p;
         info += `-Profile: ${options.profile} `;
-    }
+    } else if (options.silent) options.profile = 'dev'; //Default
+
     if (args.testSkip || args.t) {
         options.testSkip = true;
         info += `-Test Skip: true `;
-    }
+    } else if (options.silent) options.testSkip = true;
+
     if (args.output || args.o) {
         options.output = args.output || args.o;
         info += `-Output file: ${options.output} `;
@@ -75,10 +81,6 @@ function getAndPrintArguments() {
     if (args.release || args.r) {
         options.release = args.release || args.r;
         info += `-Release version: ${options.release} `;
-    }
-    if (args.silent || args.s) {
-        options.silent = args.silent || args.s;
-        info += `-silent mode: true `;
     }
     if (info.length > 0) printInfo(`Argumentos: ${info}`);
     return options;
@@ -316,7 +318,19 @@ async function cleanBuild(profile) {
 
 async function renameOutputFile(outputName) {
     try {
-        await fs.rename(path.join('target','*.war.original'), path.join('target', outputName));
+        const dir = 'target';
+        const files = fs.readdirSync(dir);
+        const match = RegExp('.*\.war\.original$');
+
+        files.filter(function(file) {
+            return file.match(match);
+          }).forEach(function(file) {
+            const filePath = path.join(dir, file);
+            const newFilePath = path.join(dir, file.replace(match, outputName));
+
+            fs.renameSync(filePath, newFilePath);
+            printInfo('War renombrado correctamente: ' + outputName);
+        });
     } catch (err) {
         printError('Error al renombrar fichero');
         return null;

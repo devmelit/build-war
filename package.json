@@ -1,6 +1,6 @@
 {
   "name": "melit-build-war",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Utility to build wars from java + angularJS or Angular applications",
   "main": "index.js",
   "scripts": {
