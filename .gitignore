@@ -8,3 +8,9 @@
 node/
 node_tmp/
 node_modules/**
+.project
+.classpath
+.factorypath
+.vscode/
+build/
+test-files/

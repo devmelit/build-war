@@ -24,6 +24,7 @@ Herramienta para crear WAR/JAR, se añaden funcionalidades para quitar cache a l
 ## Uso:
 ```
 > buildwar --output=test.war --profile=dev
+> buildwar --output=test2.jar
 > buildwar --p=prod --testSkip 
 > buildwar --t --release="1.0.0"
 > buildwar --t --silent

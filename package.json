@@ -1,7 +1,7 @@
 {
   "name": "melit-build-war",
-  "version": "1.0.1",
-  "description": "Utility to build wars from java + angularJS or Angular applications",
+  "version": "1.0.5",
+  "description": "Utility to build war/jar from java + angularJS or Angular applications",
   "main": "index.js",
   "scripts": {
     "test": "echo \"No test specified\" && exit 1"
@@ -19,6 +19,7 @@
     "xml",
     "json",
     "war",
+    "jar",
     "java",
     "springboot"
   ],

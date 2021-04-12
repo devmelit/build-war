@@ -29,10 +29,11 @@ async function init() {
     const args = getAndPrintArguments();
     checkFiles();
     printInfo(`Angular${ANGULAR_JS ? 'JS' : ''} detectado.`);
-    const profile = args.profile || (readlineSync.keyInYN(`Es war de produccion?`, { defaultInput: 'Y' }) ? 'prod' : 'dev');
+    const profile = args.profile || (readlineSync.keyInYN(`Es artifact de produccion?`, { defaultInput: 'Y' }) ? 'prod' : 'dev');
     const testSkip = args.testSkip || !readlineSync.keyInYN(`Ejecutar TEST?`, { defaultInput: 'Y' });
 
     let pomXmlDom = await readPom();
+    const PACKAGING_EXT = await getPackagingExt(pomXmlDom);
     const buildVersion = await editPomVersion(pomXmlDom, args.release, args.silent);
     if (testSkip) await editPomTestSkip(pomXmlDom);
     if (ANGULAR_JS) await editAppConstants(buildVersion);
@@ -41,10 +42,12 @@ async function init() {
         await removeCacheStates();
     }
     await execMaven(profile)
-        .then(() => printInfo('War generado correctamente! :)'))
-        .catch((err) => printError('Error al generar war! :('));
+        .then(() => printInfo(`${PACKAGING_EXT} generado correctamente! :)`))
+        .catch((err) => printError(`Error al generar ${PACKAGING_EXT}! :(`));
     await cleanBuild(profile);
-    if (args.output) await renameOutputFile(args.output).catch(printError);
+    if (args.output) {
+        await renameOutputFile(args.output, PACKAGING_EXT).catch(printError);
+    }
     //Volvemos a agregar la build version al node despues de descartar todo
     pomXmlDom = await readPom();
     await editPomVersion(pomXmlDom, buildVersion, true);
@@ -165,6 +168,18 @@ function editPomVersion(pomXmlDom, projectVersion, silent) {
 
             }
         } catch (err) { reject(); }
+    });
+}
+
+function getPackagingExt(pomXmlDom) {
+    let ext = 'jar';
+    return new Promise((resolve, reject) => {
+        try {
+            let packagingTags = xpath.select("//*[local-name(.)='packaging']", pomXmlDom);
+
+            ext = packagingTags[0].textContent;
+            resolve(ext);
+        } catch (err) { reject(ext); }
     });
 }
 
@@ -316,20 +331,23 @@ async function cleanBuild(profile) {
     await execute(`git checkout -- ${POM_FILE}`);
 }
 
-async function renameOutputFile(outputName) {
+async function renameOutputFile(outputName, packagingExt) {
     try {
         const dir = 'target';
         const files = fs.readdirSync(dir);
-        const match = RegExp('.*\.war\.original$');
+        const match = RegExp(`.*\.${packagingExt}\.original$`);
+        const matchBoot = RegExp(`.*\.${packagingExt}$`);
 
         files.filter(function(file) {
-            return file.match(match);
+            return file.match(match) || file.match(matchBoot);
           }).forEach(function(file) {
+            const isBoot = matchBoot.test(file);
             const filePath = path.join(dir, file);
-            const newFilePath = path.join(dir, file.replace(match, outputName));
+            const outputFileName = isBoot ? 'boot-' + outputName : outputName;
+            const newFilePath = path.join(dir, file.replace(isBoot ? matchBoot : match, outputFileName));
 
             fs.renameSync(filePath, newFilePath);
-            printInfo('War renombrado correctamente: ' + outputName);
+            printInfo(`${packagingExt} renombrado correctamente: ` + outputFileName);
         });
     } catch (err) {
         printError('Error al renombrar fichero');
