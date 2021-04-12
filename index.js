@@ -196,6 +196,18 @@ function editPomTestSkip(pomXmlDom) {
                 }
             }
             propertiesElement.appendChild(tagTestSkip);
+
+            // Borrar nodo que ejecuta los test de front
+            const executionIdTest = 'webpack build test';
+            let executionTags = pomXmlDom.getElementsByTagName('execution');
+            for (let i = 0; i < executionTags.length; i++) {
+                const ids = executionTags[i].getElementsByTagName('id');
+                if (ids.length > 0 && ids[0].textContent === executionIdTest) {
+                    pomXmlDom.removeChild(executionTags[i]);
+                    break;
+                }
+            }
+
             writeFile(POM_FILE, pomXmlDom.toString()).then(resolve).catch(reject);
         } catch (err) { reject(); }
     });
