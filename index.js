@@ -195,10 +195,10 @@ function editIndexHtml() {
         try {
             fs.readFile(path.join(WEBAPP_DIR, 'index.html'), "utf-8", function (err, html) {
                 if (err && printError(err)) reject();
-                const expJsFiles = new RegExp(`(.*\.js)`, 'g');
-                html = html.replace(expJsFiles, `$1?${BUILD_TIMESTAMP}`);
-                const expCssFiles = new RegExp(`(.*\.css)`, 'g');
-                html = html.replace(expCssFiles, `$1?${BUILD_TIMESTAMP}`);
+                const expJsFiles = new RegExp(`(src=.*\.js)([\"\'])`, 'g');
+                html = html.replace(expJsFiles, `$1?${BUILD_TIMESTAMP}$2`);
+                const expCssFiles = new RegExp(`(href=.*\.css)([\"\'])`, 'g');
+                html = html.replace(expCssFiles, `$1?${BUILD_TIMESTAMP}$2`);
                 writeFile(path.join(WEBAPP_DIR, 'index.html'), html).then(resolve).catch(reject);
             });
         } catch (err) {
