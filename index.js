@@ -198,13 +198,12 @@ function editPomTestSkip(pomXmlDom) {
             propertiesElement.appendChild(tagTestSkip);
 
             // Borrar nodo que ejecuta los test de front
-            const executionIdTest = 'webpack build test';
+            const phase = 'test';
             let executionTags = pomXmlDom.getElementsByTagName('execution');
             for (let i = 0; i < executionTags.length; i++) {
-                const ids = executionTags[i].getElementsByTagName('id');
-                if (ids.length > 0 && ids[0].textContent === executionIdTest) {
+                const phases = executionTags[i].getElementsByTagName('phase');
+                if (phases.length > 0 && phases[0].textContent === phase) {
                     pomXmlDom.removeChild(executionTags[i]);
-                    break;
                 }
             }
 
